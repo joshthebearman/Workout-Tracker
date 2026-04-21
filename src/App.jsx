@@ -5,8 +5,8 @@ const STORAGE_KEYS = { PROGRAM: "wt_program", HISTORY: "wt_history" };
 
 async function load(key) {
   try {
-    const r = await window.storage.get(key);
-    return r ? JSON.parse(r.value) : null;
+    const val = localStorage.getItem(key);
+    return val ? JSON.parse(val) : null;
   } catch {
     return null;
   }
@@ -14,7 +14,7 @@ async function load(key) {
 
 async function save(key, val) {
   try {
-    await window.storage.set(key, JSON.stringify(val));
+    localStorage.setItem(key, JSON.stringify(val));
   } catch {}
 }
 
