@@ -181,7 +181,7 @@ function SetRow({ set, onChange, onRemove, index }) {
         style={inputStyle}
       />
       <input
-        type="number" placeholder="reps" value={set.reps}
+        type="text" inputMode="numeric" placeholder="reps" value={set.reps}
         onChange={e => onChange({ ...set, reps: e.target.value })}
         style={inputStyle}
       />
@@ -375,7 +375,7 @@ function EditDayModal({ day, onSave, onClose }) {
   const [exercises, setExercises] = useState(day.exercises.map(e => ({ ...e })));
 
   function addEx() {
-    setExercises(ex => [...ex, { id: uid(), name: "New Exercise", sets: 3 }]);
+    setExercises(ex => [...ex, { id: uid(), name: "New Exercise", sets: 3, repGoal: "" }]);
   }
   function removeEx(id) {
     setExercises(ex => ex.filter(e => e.id !== id));
@@ -385,6 +385,9 @@ function EditDayModal({ day, onSave, onClose }) {
   }
   function setSetsCount(id, n) {
     setExercises(ex => ex.map(e => e.id === id ? { ...e, sets: Math.max(1, parseInt(n) || 1) } : e));
+  }
+  function setRepGoal(id, goal) {
+    setExercises(ex => ex.map(e => e.id === id ? { ...e, repGoal: goal } : e));
   }
 
   return (
@@ -418,18 +421,25 @@ function EditDayModal({ day, onSave, onClose }) {
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "#555", letterSpacing: "0.15em", marginBottom: 8 }}>EXERCISES</div>
           {exercises.map(ex => (
-            <div key={ex.id} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+            <div key={ex.id} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center", flexWrap: "wrap" }}>
               <input
                 value={ex.name}
                 onChange={e => renameEx(ex.id, e.target.value)}
-                style={{ ...inputStyle, flex: 1 }}
+                style={{ ...inputStyle, flex: 1, minWidth: 140 }}
               />
               <input
                 type="number" value={ex.sets}
                 onChange={e => setSetsCount(ex.id, e.target.value)}
-                style={{ ...inputStyle, width: 56 }} min={1}
+                style={{ ...inputStyle, width: 52 }} min={1}
               />
               <span style={{ fontSize: 11, color: "#555" }}>sets</span>
+              <input
+                type="text" value={ex.repGoal || ""}
+                placeholder="—"
+                onChange={e => setRepGoal(ex.id, e.target.value)}
+                style={{ ...inputStyle, width: 64 }}
+              />
+              <span style={{ fontSize: 11, color: "#555" }}>reps</span>
               <button
                 onClick={() => removeEx(ex.id)}
                 style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: 18 }}
@@ -469,10 +479,11 @@ function SessionView({ day, onFinish, onCancel, history }) {
     const data = {};
     day.exercises.forEach(ex => {
       const lastEx = last?.exercises.find(e => e.name === ex.name);
+      const defaultReps = ex.repGoal?.trim() || lastEx?.sets?.[0]?.reps || "";
       const defaultSets = Array.from({ length: ex.sets }, () => ({
         id: uid(),
         weight: lastEx?.sets?.[0]?.weight || "",
-        reps: lastEx?.sets?.[0]?.reps || "",
+        reps: defaultReps,
         rpe: 0,
       }));
       data[ex.id] = { sets: defaultSets };
