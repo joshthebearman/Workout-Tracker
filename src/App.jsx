@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 
 // ── Persistent storage helpers ──────────────────────────────────────────────
-const STORAGE_KEYS = { PROGRAM: "wt_program", HISTORY: "wt_history" };
+const STORAGE_KEYS = {
+  PROGRAM: "wt_program",
+  HISTORY: "wt_history",
+  CYCLE_ANCHOR: "wt_cycle_anchor",
+};
 
 async function load(key) {
   try {
@@ -18,57 +22,113 @@ async function save(key, val) {
   } catch {}
 }
 
-// ── Default PPL program ─────────────────────────────────────────────────────
-const DEFAULT_PROGRAM = [
-  {
-    id: "mon", label: "MON", name: "Pull 1", type: "pull",
-    exercises: [
-      { id: "e1", name: "Barbell Row", sets: 4 },
-      { id: "e2", name: "Pull-Up", sets: 4 },
-      { id: "e3", name: "Seated Cable Row", sets: 3 },
-      { id: "e4", name: "Face Pull", sets: 3 },
-      { id: "e5", name: "Dumbbell Curl", sets: 3 },
-    ],
-  },
-  {
-    id: "tue", label: "TUE", name: "Arms + Bike", type: "arms",
-    exercises: [
-      { id: "e6", name: "Incline DB Curl", sets: 3 },
-      { id: "e7", name: "Hammer Curl", sets: 3 },
-      { id: "e8", name: "Cable Curl", sets: 2 },
-      { id: "e9", name: "Overhead Cable Extension", sets: 3 },
-      { id: "e10", name: "Skull Crusher", sets: 3 },
-      { id: "e11", name: "Tricep Pushdown", sets: 2 },
-      { id: "e12", name: "Stationary Bike", sets: 1, isBike: true },
-    ],
-  },
-  {
-    id: "wed", label: "WED", name: "Rest", type: "rest",
-    exercises: [],
-  },
-  {
-    id: "thu", label: "THU", name: "Legs", type: "legs",
-    exercises: [
-      { id: "e13", name: "Squat", sets: 4 },
-      { id: "e14", name: "Romanian Deadlift", sets: 3 },
-      { id: "e15", name: "Leg Press", sets: 3 },
-      { id: "e16", name: "Leg Curl", sets: 3 },
-      { id: "e17", name: "Calf Raise", sets: 4 },
-    ],
-  },
-  {
-    id: "fri", label: "FRI", name: "Push 1", type: "push",
-    exercises: [
-      { id: "e18", name: "Bench Press", sets: 4 },
-      { id: "e19", name: "Overhead Press", sets: 3 },
-      { id: "e20", name: "Incline DB Press", sets: 3 },
-      { id: "e21", name: "Cable Lateral Raise", sets: 3 },
-      { id: "e22", name: "Tricep Dip", sets: 3 },
-    ],
-  },
-  { id: "sat", label: "SAT", name: "Rest", type: "rest", exercises: [] },
-  { id: "sun", label: "SUN", name: "Rest", type: "rest", exercises: [] },
-];
+// Monotonic week number since epoch (weeks start Monday). Used to auto-detect
+// which cycle week the current calendar date falls into.
+function getEpochWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  d.setHours(0, 0, 0, 0);
+  return Math.floor(d.getTime() / (7 * 24 * 60 * 60 * 1000));
+}
+
+// ── Default PPL program (2-week alternating cycle) ─────────────────────────
+const DEFAULT_PROGRAM = {
+  weekA: [
+    {
+      id: "a_mon", label: "MON", name: "Pull 1", type: "pull",
+      exercises: [
+        { id: "a_e1", name: "Barbell Row", sets: 4 },
+        { id: "a_e2", name: "Pull-Up", sets: 4 },
+        { id: "a_e3", name: "Seated Cable Row", sets: 3 },
+        { id: "a_e4", name: "Face Pull", sets: 3 },
+        { id: "a_e5", name: "Dumbbell Curl", sets: 3 },
+      ],
+    },
+    {
+      id: "a_tue", label: "TUE", name: "Arms + Bike", type: "arms",
+      exercises: [
+        { id: "a_e6", name: "Incline DB Curl", sets: 3 },
+        { id: "a_e7", name: "Hammer Curl", sets: 3 },
+        { id: "a_e8", name: "Cable Curl", sets: 2 },
+        { id: "a_e9", name: "Overhead Cable Extension", sets: 3 },
+        { id: "a_e10", name: "Skull Crusher", sets: 3 },
+        { id: "a_e11", name: "Tricep Pushdown", sets: 2 },
+        { id: "a_e12", name: "Stationary Bike", sets: 1, isBike: true },
+      ],
+    },
+    { id: "a_wed", label: "WED", name: "Rest", type: "rest", exercises: [] },
+    {
+      id: "a_thu", label: "THU", name: "Legs", type: "legs",
+      exercises: [
+        { id: "a_e13", name: "Squat", sets: 4 },
+        { id: "a_e14", name: "Romanian Deadlift", sets: 3 },
+        { id: "a_e15", name: "Leg Press", sets: 3 },
+        { id: "a_e16", name: "Leg Curl", sets: 3 },
+        { id: "a_e17", name: "Calf Raise", sets: 4 },
+      ],
+    },
+    {
+      id: "a_fri", label: "FRI", name: "Push 1", type: "push",
+      exercises: [
+        { id: "a_e18", name: "Bench Press", sets: 4 },
+        { id: "a_e19", name: "Overhead Press", sets: 3 },
+        { id: "a_e20", name: "Incline DB Press", sets: 3 },
+        { id: "a_e21", name: "Cable Lateral Raise", sets: 3 },
+        { id: "a_e22", name: "Tricep Dip", sets: 3 },
+      ],
+    },
+    { id: "a_sat", label: "SAT", name: "Rest", type: "rest", exercises: [] },
+    { id: "a_sun", label: "SUN", name: "Rest", type: "rest", exercises: [] },
+  ],
+  weekB: [
+    {
+      id: "b_mon", label: "MON", name: "Pull 2", type: "pull",
+      exercises: [
+        { id: "b_e1", name: "Barbell Row", sets: 4 },
+        { id: "b_e2", name: "Pull-Up", sets: 4 },
+        { id: "b_e3", name: "Seated Cable Row", sets: 3 },
+        { id: "b_e4", name: "Face Pull", sets: 3 },
+        { id: "b_e5", name: "Dumbbell Curl", sets: 3 },
+      ],
+    },
+    {
+      id: "b_tue", label: "TUE", name: "Arms + Bike", type: "arms",
+      exercises: [
+        { id: "b_e6", name: "Incline DB Curl", sets: 3 },
+        { id: "b_e7", name: "Hammer Curl", sets: 3 },
+        { id: "b_e8", name: "Cable Curl", sets: 2 },
+        { id: "b_e9", name: "Overhead Cable Extension", sets: 3 },
+        { id: "b_e10", name: "Skull Crusher", sets: 3 },
+        { id: "b_e11", name: "Tricep Pushdown", sets: 2 },
+        { id: "b_e12", name: "Stationary Bike", sets: 1, isBike: true },
+      ],
+    },
+    { id: "b_wed", label: "WED", name: "Rest", type: "rest", exercises: [] },
+    {
+      id: "b_thu", label: "THU", name: "Legs", type: "legs",
+      exercises: [
+        { id: "b_e13", name: "Squat", sets: 4 },
+        { id: "b_e14", name: "Romanian Deadlift", sets: 3 },
+        { id: "b_e15", name: "Leg Press", sets: 3 },
+        { id: "b_e16", name: "Leg Curl", sets: 3 },
+        { id: "b_e17", name: "Calf Raise", sets: 4 },
+      ],
+    },
+    {
+      id: "b_fri", label: "FRI", name: "Push 2", type: "push",
+      exercises: [
+        { id: "b_e18", name: "Bench Press", sets: 4 },
+        { id: "b_e19", name: "Overhead Press", sets: 3 },
+        { id: "b_e20", name: "Incline DB Press", sets: 3 },
+        { id: "b_e21", name: "Cable Lateral Raise", sets: 3 },
+        { id: "b_e22", name: "Tricep Dip", sets: 3 },
+      ],
+    },
+    { id: "b_sat", label: "SAT", name: "Rest", type: "rest", exercises: [] },
+    { id: "b_sun", label: "SUN", name: "Rest", type: "rest", exercises: [] },
+  ],
+};
 
 const TYPE_COLORS = {
   pull: "#5b8cff",
@@ -501,6 +561,7 @@ function SessionView({ day, onFinish, onCancel, history }) {
 export default function App() {
   const [program, setProgram] = useState(DEFAULT_PROGRAM);
   const [history, setHistory] = useState([]);
+  const [cycleAnchor, setCycleAnchor] = useState(() => getEpochWeek(new Date()));
   const [loaded, setLoaded] = useState(false);
   const [activeDay, setActiveDay] = useState(null);
   const [editingDay, setEditingDay] = useState(null);
@@ -511,14 +572,46 @@ export default function App() {
     (async () => {
       const p = await load(STORAGE_KEYS.PROGRAM);
       const h = await load(STORAGE_KEYS.HISTORY);
-      if (p) setProgram(p);
-      if (h) setHistory(h);
+      const anchor = await load(STORAGE_KEYS.CYCLE_ANCHOR);
+
+      // Migrate legacy array-format program into the new weekA/weekB shape.
+      if (Array.isArray(p)) {
+        const weekA = p.map(day => ({
+          ...day,
+          id: `a_${day.id}`,
+          exercises: day.exercises.map(ex => ({ ...ex, id: `a_${ex.id}` })),
+        }));
+        const weekB = p.map(day => ({
+          ...day,
+          id: `b_${day.id}`,
+          name: day.name.replace(/\b1\b/, "2"),
+          exercises: day.exercises.map(ex => ({ ...ex, id: `b_${ex.id}` })),
+        }));
+        setProgram({ weekA, weekB });
+        if (h) setHistory(h.map(e => ({ ...e, dayId: `a_${e.dayId}` })));
+        else setHistory([]);
+      } else {
+        if (p) setProgram(p);
+        if (h) setHistory(h);
+      }
+
+      if (anchor !== null) setCycleAnchor(anchor);
       setLoaded(true);
     })();
   }, []);
 
   useEffect(() => { if (loaded) save(STORAGE_KEYS.PROGRAM, program); }, [program, loaded]);
   useEffect(() => { if (loaded) save(STORAGE_KEYS.HISTORY, history); }, [history, loaded]);
+  useEffect(() => { if (loaded) save(STORAGE_KEYS.CYCLE_ANCHOR, cycleAnchor); }, [cycleAnchor, loaded]);
+
+  const currentWeekIdx = (((getEpochWeek(new Date()) - cycleAnchor) % 2) + 2) % 2;
+  const currentWeekDays = currentWeekIdx === 0 ? program.weekA : program.weekB;
+  const allDays = [...program.weekA, ...program.weekB];
+
+  function selectWeek(targetIdx) {
+    if (targetIdx === currentWeekIdx) return;
+    setCycleAnchor(getEpochWeek(new Date()) - targetIdx);
+  }
 
   function startSession(day) {
     if (day.type === "rest") return;
@@ -533,7 +626,11 @@ export default function App() {
   }
 
   function saveDay(updated) {
-    setProgram(p => p.map(d => d.id === updated.id ? updated : d));
+    const weekKey = updated.id.startsWith("b_") ? "weekB" : "weekA";
+    setProgram(p => ({
+      ...p,
+      [weekKey]: p[weekKey].map(d => d.id === updated.id ? updated : d),
+    }));
     setEditingDay(null);
   }
 
@@ -597,9 +694,33 @@ export default function App() {
           />
         ) : (
           <>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, letterSpacing: "0.3em", color: "#444", marginBottom: 16 }}>THIS WEEK</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, letterSpacing: "0.3em", color: "#444" }}>THIS WEEK</div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {["A", "B"].map((label, idx) => {
+                  const active = currentWeekIdx === idx;
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => selectWeek(idx)}
+                      style={{
+                        background: active ? "#e8ff47" : "transparent",
+                        border: `1px solid ${active ? "#e8ff47" : "#2a2a2a"}`,
+                        color: active ? "#0f0f0f" : "#666",
+                        cursor: "pointer",
+                        padding: "4px 12px",
+                        fontFamily: "'Bebas Neue', sans-serif",
+                        fontSize: 12,
+                        letterSpacing: "0.15em",
+                        borderRadius: 2,
+                      }}
+                    >WEEK {label}</button>
+                  );
+                })}
+              </div>
+            </div>
 
-            {program.map((day, i) => {
+            {currentWeekDays.map((day, i) => {
               const color = TYPE_COLORS[day.type];
               const isToday = i === todayIdx;
               const last = getLastSession(day.id);
@@ -663,7 +784,7 @@ export default function App() {
       </div>
 
       {editingDay && <EditDayModal day={editingDay} onSave={saveDay} onClose={() => setEditingDay(null)} />}
-      {showHistory && <HistoryView history={history} program={program} onClose={() => setShowHistory(false)} />}
+      {showHistory && <HistoryView history={history} program={allDays} onClose={() => setShowHistory(false)} />}
     </div>
   );
 }
