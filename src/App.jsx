@@ -167,29 +167,30 @@ function RpeDots({ value, onChange }) {
 // ── Set row ──────────────────────────────────────────────────────────────────
 function SetRow({ set, onChange, onRemove, index }) {
   return (
-    <div style={{
-      display: "grid", gridTemplateColumns: "24px 80px 80px 1fr 28px",
-      gap: 8, alignItems: "center", padding: "6px 0",
-      borderBottom: "1px solid #1e1e1e",
-    }}>
-      <span style={{ fontFamily: "'Bebas Neue', sans-serif", color: "#555", fontSize: 13 }}>
-        {index + 1}
-      </span>
-      <input
-        type="number" placeholder="lbs" value={set.weight}
-        onChange={e => onChange({ ...set, weight: e.target.value })}
-        style={inputStyle}
-      />
-      <input
-        type="text" inputMode="numeric" placeholder="reps" value={set.reps}
-        onChange={e => onChange({ ...set, reps: e.target.value })}
-        style={inputStyle}
-      />
-      <RpeDots value={set.rpe} onChange={rpe => onChange({ ...set, rpe })} />
-      <button
-        onClick={onRemove}
-        style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
-      >×</button>
+    <div style={{ display: "flex", flexDirection: "column", padding: "6px 0", borderBottom: "1px solid #1e1e1e" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "24px 80px 80px 1fr 28px", gap: 8, alignItems: "center", marginBottom: 6 }}>
+        <span style={{ fontFamily: "'Bebas Neue', sans-serif", color: "#555", fontSize: 13 }}>
+          {index + 1}
+        </span>
+        <input
+          type="number" placeholder="lbs" value={set.weight}
+          onChange={e => onChange({ ...set, weight: e.target.value })}
+          style={inputStyle}
+        />
+        <input
+          type="text" inputMode="numeric" placeholder="reps" value={set.reps}
+          onChange={e => onChange({ ...set, reps: e.target.value })}
+          style={inputStyle}
+        />
+        <span />
+        <button
+          onClick={onRemove}
+          style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
+        >×</button>
+      </div>
+      <div style={{ display: "flex", gap: 3, paddingLeft: 32 }}>
+        <RpeDots value={set.rpe} onChange={rpe => onChange({ ...set, rpe })} />
+      </div>
     </div>
   );
 }
@@ -236,7 +237,7 @@ function ExerciseBlock({ exercise, sessionData, onUpdate, onRename, onDelete }) 
             <span />
             <span style={{ fontSize: 10, color: "#555", letterSpacing: "0.1em", fontFamily: "'DM Sans', sans-serif" }}>WEIGHT</span>
             <span style={{ fontSize: 10, color: "#555", letterSpacing: "0.1em", fontFamily: "'DM Sans', sans-serif" }}>REPS</span>
-            <span style={{ fontSize: 10, color: "#555", letterSpacing: "0.1em", fontFamily: "'DM Sans', sans-serif" }}>RPE</span>
+            <span />
             <span />
           </div>
         )}
