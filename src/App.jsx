@@ -165,18 +165,22 @@ function RpeDots({ value, onChange }) {
 }
 
 // ── Set row ──────────────────────────────────────────────────────────────────
-function SetRow({ set, onChange, onRemove, index }) {
+function SetRow({ set, onChange, onRemove, index, isBodyweight }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", padding: "6px 0", borderBottom: "1px solid #1e1e1e" }}>
       <div style={{ display: "grid", gridTemplateColumns: "24px 80px 80px 1fr 28px", gap: 8, alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontFamily: "'Bebas Neue', sans-serif", color: "#555", fontSize: 13 }}>
           {index + 1}
         </span>
-        <input
-          type="number" placeholder="lbs" value={set.weight}
-          onChange={e => onChange({ ...set, weight: e.target.value })}
-          style={inputStyle}
-        />
+        {isBodyweight ? (
+          <div style={{ ...inputStyle, color: "#888", display: "flex", alignItems: "center" }}>BW</div>
+        ) : (
+          <input
+            type="number" placeholder="lbs" value={set.weight}
+            onChange={e => onChange({ ...set, weight: e.target.value })}
+            style={inputStyle}
+          />
+        )}
         <input
           type="text" inputMode="numeric" placeholder="reps" value={set.reps}
           onChange={e => onChange({ ...set, reps: e.target.value })}
@@ -235,7 +239,9 @@ function ExerciseBlock({ exercise, sessionData, onUpdate, onRename, onDelete }) 
         {sets.length > 0 && (
           <div style={{ display: "grid", gridTemplateColumns: "24px 80px 80px 1fr 28px", gap: 8, padding: "6px 0 2px", marginBottom: 2 }}>
             <span />
-            <span style={{ fontSize: 10, color: "#555", letterSpacing: "0.1em", fontFamily: "'DM Sans', sans-serif" }}>WEIGHT</span>
+            <span style={{ fontSize: 10, color: "#555", letterSpacing: "0.1em", fontFamily: "'DM Sans', sans-serif" }}>
+              {exercise.isBodyweight ? "BW" : "WEIGHT"}
+            </span>
             <span style={{ fontSize: 10, color: "#555", letterSpacing: "0.1em", fontFamily: "'DM Sans', sans-serif" }}>REPS</span>
             <span />
             <span />
@@ -244,6 +250,7 @@ function ExerciseBlock({ exercise, sessionData, onUpdate, onRename, onDelete }) 
         {sets.map((s, i) => (
           <SetRow
             key={s.id} set={s} index={i}
+            isBodyweight={exercise.isBodyweight}
             onChange={u => updateSet(s.id, u)}
             onRemove={() => removeSet(s.id)}
           />
@@ -296,7 +303,7 @@ function HistoryView({ history, program, onClose }) {
                 {ex.sets?.length > 0 ? ex.sets.map((s, i) => (
                   <div key={s.id} style={{ display: "flex", gap: 16, padding: "4px 0", fontSize: 13, borderBottom: "1px solid #1a1a1a" }}>
                     <span style={{ color: "#555", fontFamily: "'Bebas Neue', sans-serif" }}>{i + 1}</span>
-                    <span>{s.weight ? `${s.weight} lbs` : "—"}</span>
+                    <span>{s.weight ? `${s.weight} lbs` : ex.isBodyweight ? "BW" : "—"}</span>
                     <span>{s.reps ? `${s.reps} reps` : "—"}</span>
                     {s.rpe > 0 && (
                       <span style={{ color: s.rpe <= 4 ? "#5b8cff" : s.rpe <= 7 ? "#e8ff47" : "#ff4444" }}>RPE {s.rpe}</span>
@@ -376,7 +383,7 @@ function EditDayModal({ day, onSave, onClose }) {
   const [exercises, setExercises] = useState(day.exercises.map(e => ({ ...e })));
 
   function addEx() {
-    setExercises(ex => [...ex, { id: uid(), name: "New Exercise", sets: 3, repGoal: "" }]);
+    setExercises(ex => [...ex, { id: uid(), name: "New Exercise", sets: 3, repGoal: "", isBodyweight: false }]);
   }
   function removeEx(id) {
     setExercises(ex => ex.filter(e => e.id !== id));
@@ -389,6 +396,9 @@ function EditDayModal({ day, onSave, onClose }) {
   }
   function setRepGoal(id, goal) {
     setExercises(ex => ex.map(e => e.id === id ? { ...e, repGoal: goal } : e));
+  }
+  function toggleBodyweight(id) {
+    setExercises(ex => ex.map(e => e.id === id ? { ...e, isBodyweight: !e.isBodyweight } : e));
   }
 
   return (
@@ -441,6 +451,16 @@ function EditDayModal({ day, onSave, onClose }) {
                 style={{ ...inputStyle, width: 64 }}
               />
               <span style={{ fontSize: 11, color: "#555" }}>reps</span>
+              <button
+                onClick={() => toggleBodyweight(ex.id)}
+                style={{
+                  background: ex.isBodyweight ? "#f0f0f0" : "transparent",
+                  border: "1px solid " + (ex.isBodyweight ? "#f0f0f0" : "#2a2a2a"),
+                  borderRadius: 2, padding: "4px 8px", cursor: "pointer",
+                  color: ex.isBodyweight ? "#0f0f0f" : "#555",
+                  fontFamily: "'Bebas Neue', sans-serif", fontSize: 11, letterSpacing: "0.1em",
+                }}
+              >BW</button>
               <button
                 onClick={() => removeEx(ex.id)}
                 style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: 18 }}
@@ -514,6 +534,7 @@ function SessionView({ day, onFinish, onCancel, history }) {
       exercises: exercises.map(ex => ({
         id: ex.id,
         name: ex.name,
+        isBodyweight: ex.isBodyweight || false,
         sets: sessionData[ex.id]?.sets || [],
       })),
     };
@@ -522,7 +543,9 @@ function SessionView({ day, onFinish, onCancel, history }) {
 
   const totalSets = exercises.reduce((acc, ex) => acc + (sessionData[ex.id]?.sets?.length || 0), 0);
   const filledSets = exercises.reduce((acc, ex) =>
-    acc + (sessionData[ex.id]?.sets?.filter(s => s.weight && s.reps).length || 0), 0);
+    acc + (sessionData[ex.id]?.sets?.filter(s =>
+      ex.isBodyweight ? !!s.reps : !!(s.weight && s.reps)
+    ).length || 0), 0);
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", color: "#f0f0f0", maxWidth: 600, margin: "0 auto", padding: "0 0 6rem" }}>
