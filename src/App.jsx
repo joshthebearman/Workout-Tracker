@@ -522,7 +522,7 @@ function SessionView({ day, onFinish, onCancel, history }) {
 
   const totalSets = exercises.reduce((acc, ex) => acc + (sessionData[ex.id]?.sets?.length || 0), 0);
   const filledSets = exercises.reduce((acc, ex) =>
-    acc + (sessionData[ex.id]?.sets?.filter(s => s.weight || s.reps).length || 0), 0);
+    acc + (sessionData[ex.id]?.sets?.filter(s => s.weight && s.reps).length || 0), 0);
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", color: "#f0f0f0", maxWidth: 600, margin: "0 auto", padding: "0 0 6rem" }}>
